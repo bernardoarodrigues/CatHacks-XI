@@ -85,3 +85,4 @@ while True:
 - Built for CatHacks-XI
 - Uses [flappy-bird-gymnasium](https://github.com/pygames-playground/flappy-bird-gymnasium)
 - Sprites from the original Flappy Bird game
+- Used generated code from genAI (chatGPT, Copilot)
