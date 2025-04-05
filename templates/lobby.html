@@ -1,0 +1,27 @@
+<html>
+<head>
+    <title>Lobby</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Welcome to the Lobby</h1>
+    <p>Waiting for all players to join...</p>
+    <button id="start-game" disabled>Start Game</button>
+
+    <script src="/static/js/socket_client.js"></script>
+    <script>
+        const socket = io();
+
+        // Enable the start button when all players are ready
+        socket.on('lobby_update', (data) => {
+            const startButton = document.getElementById('start-game');
+            startButton.disabled = !data.allPlayersReady;
+        });
+
+        // Notify server to start the game
+        document.getElementById('start-game').addEventListener('click', () => {
+            socket.emit('start_game');
+        });
+    </script>
+</body>
+</html>
