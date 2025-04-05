@@ -1,26 +1,44 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 from game_manager import GameManager
+from single_player_game_manager import SinglePlayerGameManager
 import threading
 import time
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+# Initialize game managers
 game_manager = GameManager()
+single_player_manager = SinglePlayerGameManager()
+
 players = {}  # Store player information (username, admin status)
 spectators = set()  # Track spectator IDs
 game_in_progress = False
+ai_game_in_progress = False
 last_game_state = None  # Track the last game state to check for game over
+last_ai_game_state = None  # Track the last AI game state
 
 # Background thread for updating game state
 def game_state_updater():
-    global game_in_progress, last_game_state
+    global game_in_progress, last_game_state, ai_game_in_progress, last_ai_game_state
     
     while True:
+        # Handle multiplayer game
         if game_in_progress:
             # Get the raw game state from the game manager
             game_state = game_manager.get_game_state()
+            
+            # Check for countdown status - game isn't truly started until countdown finishes
+            if "_metadata" in game_state and "countdown" in game_state["_metadata"]:
+                countdown_info = game_state["_metadata"]["countdown"]
+                if countdown_info["active"]:
+                    # Countdown is still active, just send the state but don't check for game over yet
+                    enhanced_state = _enhance_game_state(game_state)
+                    socketio.emit('game_state', enhanced_state)
+                    last_game_state = enhanced_state
+                    time.sleep(0.1)
+                    continue
             
             # Check for game over
             if "_metadata" in game_state and game_state["_metadata"]["game_over"]:
@@ -46,28 +64,7 @@ def game_state_updater():
                 game_in_progress = False
             
             # Enhance the game state with player information
-            enhanced_state = {
-                "game_data": game_state,
-                "players_info": {}
-            }
-            
-            # Add player details to the enhanced state
-            for player_id, player_info in players.items():
-                # Create default player data
-                player_data = {
-                    "id": player_id,
-                    "username": player_info["username"],
-                    "isAdmin": player_info["isAdmin"],
-                    "score": 0,
-                    "alive": False
-                }
-                
-                # Update with game state if available
-                if player_id in game_state:
-                    player_data["score"] = game_state[player_id]["score"]
-                    player_data["alive"] = game_state[player_id]["alive"]
-                
-                enhanced_state["players_info"][player_id] = player_data
+            enhanced_state = _enhance_game_state(game_state)
             
             # Send the enhanced state to all clients
             socketio.emit('game_state', enhanced_state)
@@ -79,8 +76,79 @@ def game_state_updater():
             # If game is over but we still have a last state, continue to send it
             # This ensures clients who connect after game over still see the results
             socketio.emit('game_state', last_game_state)
+        
+        # Handle single-player AI game
+        if ai_game_in_progress:
+            # Get the AI game state
+            ai_game_state = single_player_manager.get_game_state()
+            
+            # Check for game over
+            if ai_game_state["_metadata"]["game_over"]:
+                winner = ai_game_state["_metadata"]["winner"]
+                
+                # Prepare winner announcement
+                if winner == "player":
+                    winner_data = {
+                        "id": "player",
+                        "username": "You",
+                        "score": ai_game_state["player"]["score"]
+                    }
+                elif winner == "ai":
+                    winner_data = {
+                        "id": "ai",
+                        "username": "AI",
+                        "score": ai_game_state["ai"]["score"]
+                    }
+                else:
+                    winner_data = None
+                
+                # Emit game over event
+                socketio.emit('ai_game_over', {
+                    "winner": winner_data,
+                    "all_dead": winner is None
+                })
+                
+                # Game is no longer in progress
+                ai_game_in_progress = False
+            
+            # Send the AI game state to all clients
+            socketio.emit('ai_game_state', ai_game_state)
+            
+            # Store the last game state
+            last_ai_game_state = ai_game_state
+            
+        elif last_ai_game_state is not None:
+            # If AI game is over but we still have a last state, continue to send it
+            socketio.emit('ai_game_state', last_ai_game_state)
             
         time.sleep(0.1)  # Update 10 times per second
+
+# Helper function to enhance game state with player information
+def _enhance_game_state(game_state):
+    enhanced_state = {
+        "game_data": game_state,
+        "players_info": {}
+    }
+    
+    # Add player details to the enhanced state
+    for player_id, player_info in players.items():
+        # Create default player data
+        player_data = {
+            "id": player_id,
+            "username": player_info["username"],
+            "isAdmin": player_info["isAdmin"],
+            "score": 0,
+            "alive": False
+        }
+        
+        # Update with game state if available
+        if player_id in game_state:
+            player_data["score"] = game_state[player_id]["score"]
+            player_data["alive"] = game_state[player_id]["alive"]
+        
+        enhanced_state["players_info"][player_id] = player_data
+        
+    return enhanced_state
 
 @app.route('/')
 def index():
@@ -88,9 +156,6 @@ def index():
 
 @socketio.on('connect')
 def handle_connect():
-    player_id = request.sid
-    # Don't add to game_manager yet until they join the game
-    
     # Send current game state to the new connection
     if last_game_state:
         emit('game_state', last_game_state)
@@ -253,6 +318,44 @@ def toggle_test_mode(data):
         emit('test_mode_status', {
             'enabled': enabled
         }, broadcast=True)
+
+@socketio.on('start_ai_game')
+def handle_start_ai_game(data):
+    """Start a single-player game against AI"""
+    global ai_game_in_progress, last_ai_game_state
+    player_id = request.sid
+    username = data.get('username', f'Player_{player_id[:5]}')
+    
+    # Reset previous AI game
+    last_ai_game_state = None
+    single_player_manager.reset_game()
+    
+    # Mark AI game as in progress
+    ai_game_in_progress = True
+    
+    # Notify player that AI game has started
+    emit('ai_game_started')
+    
+    # Start the AI game
+    single_player_manager.start_game()
+
+@socketio.on('update_ai_position')
+def update_ai_position(data):
+    """Update player position in AI game"""
+    action = data.get('action', 0)
+    single_player_manager.update_player_action(action)
+
+@socketio.on('reset_ai_game')
+def reset_ai_game():
+    """Reset the AI game"""
+    global ai_game_in_progress, last_ai_game_state
+    
+    single_player_manager.reset_game()
+    ai_game_in_progress = False
+    last_ai_game_state = None
+    
+    # Notify client that game has been reset
+    emit('ai_game_reset')
 
 if __name__ == '__main__':
     # Start background thread for game state updates
