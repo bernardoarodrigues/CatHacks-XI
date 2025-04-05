@@ -24,6 +24,6 @@ while not done:
     # action, _ = model.predict(obs)
 
     obs, reward, done, _, _ = env.step(action)
-    print("yippie reward: ", reward)
+    print(f"Action {action} gave {reward} reward...")
 
 env.close()

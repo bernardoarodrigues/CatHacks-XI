@@ -80,6 +80,22 @@ while True:
         break
 ```
 
+## Technologies Used
+
+- **Frontend:** TODO
+  - HTML5
+  - CSS3 / Tailwind CSS
+  - JavaScript / TypeScript
+  - React.js
+
+- **Backend:** TODO
+  - Node.js
+  - Express.js
+  - MongoDB
+
+- **Reinforcement Learning:**
+  - TensorFlow
+
 ## Credits
 
 - Built for CatHacks-XI
