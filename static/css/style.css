@@ -72,10 +72,58 @@ h1 {
 .form-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 15px;
-    max-width: 500px;
-    margin: 0 auto;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    text-align: center;
+}
+
+.button-separator {
+    position: relative;
+    text-align: center;
+    font-weight: bold;
+    color: #555;
+    margin: 8px 0;
+}
+
+.button-separator::before,
+.button-separator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40%;
+    height: 1px;
+    background-color: #ccc;
+}
+
+.button-separator::before {
+    left: 0;
+}
+
+.button-separator::after {
+    right: 0;
+}
+
+#play-ai-btn {
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#play-ai-btn:hover {
+    background-color: #f57c00;
+}
+
+#play-ai-btn:active {
+    background-color: #e65100;
 }
 
 button {

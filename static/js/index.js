@@ -3,7 +3,8 @@ let currentUser = {
     id: '',
     username: '',
     isAdmin: false,
-    inGame: false
+    inGame: false,
+    inAiGame: false // Track if user is in AI game mode
 };
 
 // Game assets
@@ -101,6 +102,7 @@ const gameCanvasContainer = document.getElementById('game-canvas-container');
 
 // Game state
 let gameState = null;
+let aiGameState = null; // Store AI game state
 let playersInfo = {};
 let animationFrameId = null;
 let showDebugBoxes = false; // Debug flag
@@ -210,6 +212,47 @@ document.getElementById('join-btn').addEventListener('click', () => {
     }
 });
 
+// Play against AI button
+document.getElementById('play-ai-btn').addEventListener('click', () => {
+    const username = document.getElementById('username').value.trim() || 'Player';
+    
+    // Set user info
+    currentUser.username = username;
+    currentUser.inAiGame = true;
+    
+    // Start AI game
+    socket.emit('start_ai_game', {
+        username: username
+    });
+    
+    // Hide login, show game section
+    loginSection.style.display = 'none';
+    gameSection.style.display = 'block';
+    
+    // Update UI for AI game
+    playersAliveElem.textContent = 'AI Battle';
+    
+    // Hide game over modal if visible
+    gameOverModal.classList.add('hidden');
+    
+    // Hide admin controls
+    adminControls.style.display = 'none';
+    adminGameControls.style.display = 'none';
+    
+    // Setup canvas size
+    resizeGameCanvas();
+    
+    // Load game assets if not already loaded
+    if (!gameAssets.loaded) {
+        loadGameAssets();
+    } else {
+        loadingIndicator.style.display = 'none';
+    }
+    
+    // Start game loop
+    startAiGameLoop();
+});
+
 // Admin: Start game button
 document.getElementById('start-game-btn').addEventListener('click', () => {
     if (currentUser.isAdmin) {
@@ -277,11 +320,28 @@ socket.on('game_started', () => {
     startGameLoop();
 });
 
+socket.on('ai_game_started', () => {
+    // Load game assets if not already loaded
+    if (!gameAssets.loaded) {
+        loadGameAssets();
+    }
+    
+    // Toggle mobile fullscreen mode
+    toggleMobileFullscreenMode(true);
+});
+
 socket.on('game_state', (enhancedState) => {
     if (currentUser.inGame) {
         gameState = enhancedState.game_data;
         playersInfo = enhancedState.players_info;
         updateGameDisplay(enhancedState);
+    }
+});
+
+socket.on('ai_game_state', (state) => {
+    if (currentUser.inAiGame) {
+        aiGameState = state;
+        updateAiGameDisplay();
     }
 });
 
@@ -311,6 +371,62 @@ socket.on('game_over', (data) => {
     gameOverModal.classList.remove('hidden');
 });
 
+socket.on('ai_game_over', (data) => {
+    // Stop game loop
+    stopGameLoop();
+    
+    // Display game over modal with winner information
+    if (data.winner) {
+        winnerAnnouncement.innerHTML = `
+            <p>Winner is:</p>
+            <div class="winner-name">${data.winner.username}</div>
+            <p>with a score of ${Math.floor(data.winner.score)}</p>
+        `;
+    } else {
+        winnerAnnouncement.innerHTML = `
+            <p>Both players died!</p>
+            <p>No winner this round.</p>
+        `;
+    }
+    
+    // Add "Play Again" button
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'reset-button';
+    resetBtn.textContent = 'Play Again';
+    resetBtn.addEventListener('click', () => {
+        socket.emit('reset_ai_game');
+        gameOverModal.classList.add('hidden');
+    });
+    
+    // Add "Back to Menu" button
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'reset-button';
+    menuBtn.textContent = 'Back to Menu';
+    menuBtn.addEventListener('click', () => {
+        socket.emit('reset_ai_game');
+        gameOverModal.classList.add('hidden');
+        gameSection.style.display = 'none';
+        loginSection.style.display = 'block';
+        currentUser.inAiGame = false;
+        toggleMobileFullscreenMode(false);
+    });
+    
+    // Clear existing controls and add new buttons
+    const controls = document.createElement('div');
+    controls.appendChild(resetBtn);
+    controls.appendChild(menuBtn);
+    
+    // Replace existing controls
+    const existingControls = gameOverModal.querySelector('#admin-reset-controls');
+    if (existingControls) {
+        existingControls.innerHTML = '';
+        existingControls.appendChild(controls);
+        existingControls.style.display = 'block';
+    }
+    
+    gameOverModal.classList.remove('hidden');
+});
+
 socket.on('game_reset', () => {
     // Stop game loop
     stopGameLoop();
@@ -331,6 +447,14 @@ socket.on('game_reset', () => {
     toggleMobileFullscreenMode(false);
 });
 
+socket.on('ai_game_reset', () => {
+    // Hide game over modal
+    gameOverModal.classList.add('hidden');
+    
+    // Restart game loop
+    startAiGameLoop();
+});
+
 // Game controls
 document.addEventListener('keydown', (event) => {
     if (currentUser.inGame && event.code === 'Space') {
@@ -348,6 +472,17 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
+// Add AI game controls
+document.addEventListener('keydown', (event) => {
+    // Handle key controls for AI game mode
+    if (currentUser.inAiGame && event.code === 'Space') {
+        socket.emit('update_ai_position', {
+            action: 1  // Flap
+        });
+        event.preventDefault(); // Prevent scrolling on space
+    }
+});
+
 // Mobile touch control
 gameCanvas.addEventListener('touchstart', (event) => {
     if (currentUser.inGame) {
@@ -356,6 +491,16 @@ gameCanvas.addEventListener('touchstart', (event) => {
             action: 1  // Flap
         });
         event.preventDefault(); // Prevent default touch behavior
+    }
+});
+
+// Handle mobile touch control for AI game
+gameCanvas.addEventListener('touchstart', (event) => {
+    if (currentUser.inAiGame) {
+        socket.emit('update_ai_position', {
+            action: 1  // Flap
+        });
+        event.preventDefault();
     }
 });
 
@@ -378,6 +523,20 @@ function stopGameLoop() {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
     }
+}
+
+// Start AI game loop
+function startAiGameLoop() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    
+    function gameLoop() {
+        renderAiGame();
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+    
+    animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 // Game rendering function
@@ -644,6 +803,192 @@ function renderGame() {
     }
 }
 
+// Render AI game
+function renderAiGame() {
+    if (!aiGameState || !gameAssets.loaded) return;
+    
+    const ctx = gameCanvasContext;
+    const canvas = gameCanvas;
+    
+    // Get metadata from game state
+    const metadata = aiGameState._metadata;
+    const gameData = metadata.game_data;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate scale factors for responsive rendering
+    const scaleX = canvas.width / (gameData.screen_width || 288);
+    const scaleY = canvas.height / (gameData.screen_height || 512);
+    
+    // Draw background
+    ctx.drawImage(gameAssets.background, 0, 0, canvas.width, canvas.height);
+    
+    // Draw pipes
+    if (gameData.pipes) {
+        // First draw all lower pipes
+        gameData.pipes.forEach(pipe => {
+            const pipeX = pipe.x * scaleX;
+            const lowerY = pipe.lower_y * scaleY;
+            const pipeWidth = (gameData.pipe_width || 52) * scaleX;
+            
+            // Lower pipe
+            ctx.fillStyle = '#74BF2E'; // Green color
+            ctx.fillRect(pipeX, lowerY, pipeWidth, canvas.height - lowerY);
+            
+            // Border
+            ctx.strokeStyle = '#528C1E';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(pipeX, lowerY, pipeWidth, canvas.height - lowerY);
+        });
+        
+        // Now draw all upper pipes
+        gameData.pipes.forEach(pipe => {
+            const pipeX = pipe.x * scaleX;
+            const upperY = pipe.upper_y * scaleY;
+            const pipeWidth = (gameData.pipe_width || 52) * scaleX;
+            
+            // Upper pipe - now use the same green color as lower pipes
+            ctx.fillStyle = '#74BF2E'; // Match the lower pipe color
+            ctx.fillRect(pipeX, 0, pipeWidth, upperY);
+            
+            // Border
+            ctx.strokeStyle = '#528C1E';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(pipeX, 0, pipeWidth, upperY);
+        });
+    }
+    
+    // Draw ground
+    if (gameData.ground_y) {
+        const groundY = gameData.ground_y * scaleY;
+        ctx.drawImage(gameAssets.ground, 0, groundY, canvas.width, canvas.height - groundY);
+    }
+    
+    // Draw player bird
+    if (aiGameState.player.alive) {
+        const playerPos = aiGameState.player.position;
+        
+        // Scale the positions
+        const playerX = playerPos.x * scaleX;
+        const playerY = playerPos.y * scaleY;
+        const playerWidth = 34 * scaleX;
+        const playerHeight = 24 * scaleY;
+        
+        // Apply rotation to the bird
+        ctx.save();
+        ctx.translate(playerX + playerWidth/2, playerY + playerHeight/2);
+        ctx.rotate(playerPos.rotation * Math.PI / 180);
+        ctx.translate(-(playerX + playerWidth/2), -(playerY + playerHeight/2));
+        
+        // Draw player bird - red color
+        ctx.drawImage(
+            gameAssets.bird.red,
+            playerX, 
+            playerY, 
+            playerWidth, 
+            playerHeight
+        );
+        
+        ctx.restore();
+        
+        // Display player name above bird
+        ctx.fillStyle = '#ff8c00'; // Orange color for player
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = `${12 * scaleX}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.strokeText('You', playerX + playerWidth/2, playerY - 10 * scaleY);
+        ctx.fillText('You', playerX + playerWidth/2, playerY - 10 * scaleY);
+    }
+    
+    // Draw AI bird
+    if (aiGameState.ai.alive) {
+        const aiPos = aiGameState.ai.position;
+        
+        // Scale the positions
+        const aiX = aiPos.x * scaleX;
+        const aiY = aiPos.y * scaleY;
+        const aiWidth = 34 * scaleX;
+        const aiHeight = 24 * scaleY;
+        
+        // Apply rotation to the bird
+        ctx.save();
+        ctx.translate(aiX + aiWidth/2, aiY + aiHeight/2);
+        ctx.rotate(aiPos.rotation * Math.PI / 180);
+        ctx.translate(-(aiX + aiWidth/2), -(aiY + aiHeight/2));
+        
+        // Draw AI bird - yellow color
+        ctx.drawImage(
+            gameAssets.bird.yellow,
+            aiX, 
+            aiY, 
+            aiWidth, 
+            aiHeight
+        );
+        
+        ctx.restore();
+        
+        // Display AI name above bird
+        ctx.fillStyle = '#ffcc00'; // Yellow color for AI
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = `${12 * scaleX}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.strokeText('AI', aiX + aiWidth/2, aiY - 10 * scaleY);
+        ctx.fillText('AI', aiX + aiWidth/2, aiY - 10 * scaleY);
+    }
+    
+    // Check if countdown is active and draw it
+    if (metadata.countdown && metadata.countdown.active) {
+        countdownActive = true;
+        countdownValue = Math.ceil(metadata.countdown.remaining);
+        
+        // Draw a semi-transparent overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw countdown text
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 8;
+        
+        // Use a large font size that scales with the canvas
+        const fontSize = Math.min(canvas.width, canvas.height) * 0.25;
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Position the countdown in the center of the screen
+        const textX = canvas.width / 2;
+        const textY = canvas.height / 2;
+        
+        // Draw "GET READY" text
+        const getReadyFontSize = fontSize * 0.3;
+        ctx.font = `bold ${getReadyFontSize}px Arial`;
+        ctx.strokeText('GET READY!', textX, textY - fontSize * 0.7);
+        ctx.fillText('GET READY!', textX, textY - fontSize * 0.7);
+        
+        // Draw the countdown number with a drop shadow effect
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+        
+        ctx.strokeText(countdownValue, textX, textY);
+        ctx.fillText(countdownValue, textX, textY);
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+    } else {
+        countdownActive = false;
+    }
+}
+
 function updateGameDisplay(enhancedState) {
     const gameData = enhancedState.game_data;
     const playerInfos = enhancedState.players_info;
@@ -678,6 +1023,35 @@ function updateGameDisplay(enhancedState) {
         playersAlive = Object.values(filteredGameState).filter(p => p.alive).length;
     }
     playersAliveElem.textContent = 'Players Alive: ' + playersAlive;
+}
+
+function updateAiGameDisplay() {
+    if (!aiGameState) return;
+    
+    // Update player score
+    const playerScore = Math.floor(aiGameState.player.score);
+    gameOverlayScore.textContent = 'Score: ' + playerScore;
+    
+    // Update scoreboard
+    playersScores.innerHTML = '';
+    
+    // Create player entry
+    const playerRow = document.createElement('div');
+    playerRow.className = `player-row ${aiGameState.player.alive ? 'alive' : 'dead'}`;
+    playerRow.innerHTML = `
+        <span class="player-name current-player">You</span>
+        <span class="player-score">Score: ${playerScore}</span>
+    `;
+    playersScores.appendChild(playerRow);
+    
+    // Create AI entry
+    const aiRow = document.createElement('div');
+    aiRow.className = `player-row ${aiGameState.ai.alive ? 'alive' : 'dead'}`;
+    aiRow.innerHTML = `
+        <span class="player-name">AI</span>
+        <span class="player-score">Score: ${Math.floor(aiGameState.ai.score)}</span>
+    `;
+    playersScores.appendChild(aiRow);
 }
 
 function updatePlayersScoreboard(playersInfo) {
