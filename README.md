@@ -80,8 +80,25 @@ while True:
         break
 ```
 
+## Technologies Used
+
+- **Frontend:** TODO
+  - HTML5
+  - CSS3 / Tailwind CSS
+  - JavaScript / TypeScript
+  - React.js
+
+- **Backend:** TODO
+  - Node.js
+  - Express.js
+  - MongoDB
+
+- **Reinforcement Learning:**
+  - TensorFlow
+
 ## Credits
 
 - Built for CatHacks-XI
 - Uses [flappy-bird-gymnasium](https://github.com/pygames-playground/flappy-bird-gymnasium)
 - Sprites from the original Flappy Bird game
+- Used generated code from genAI (chatGPT, Copilot)
