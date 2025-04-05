@@ -39,13 +39,10 @@ body {
     bottom: 0;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.9); /* Semi-transparent background */
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     text-align: center;
     width: 80%;
     max-width: 350px;
+    flex-direction: column;
 }
 
 .section {
@@ -82,8 +79,8 @@ h1 {
 }
 
 button {
-    background-color: #4CAF50;
-    color: white;
+    background-color: #F8CD14;
+    color: black;
     border: none;
     padding: 12px 20px;
     border-radius: 6px;
@@ -94,7 +91,7 @@ button {
 }
 
 button:hover {
-    background-color: #45a049;
+    background-color: #c3a006;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     transform: translateY(-2px);
 }
@@ -527,6 +524,51 @@ input:checked + .toggle-slider:before {
     
     .players-scoreboard {
         margin-top: 20px;
+    }
+}
+
+/* Mobile fullscreen game mode */
+@media (max-width: 768px) {
+    .mobile-fullscreen-game #game-canvas-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        z-index: 1000;
+        border-radius: 0;
+    }
+    
+    .mobile-fullscreen-game .game-overlay,
+    .mobile-fullscreen-game .status-badge {
+        z-index: 1001;
+    }
+    
+    .mobile-fullscreen-game #game-canvas {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .mobile-fullscreen-game .game-sidebar,
+    .mobile-fullscreen-game .section:not(#game-section) {
+        display: none;
+    }
+    
+    .mobile-fullscreen-game .exit-fullscreen {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        z-index: 1002;
+        padding: 10px;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }
 

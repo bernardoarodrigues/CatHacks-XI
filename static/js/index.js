@@ -97,6 +97,7 @@ const playersScores = document.getElementById('players-scores');
 const gameOverModal = document.getElementById('game-over-modal');
 const winnerAnnouncement = document.getElementById('winner-announcement');
 const playersAliveElem = document.getElementById('players-alive');
+const gameCanvasContainer = document.getElementById('game-canvas-container');
 
 // Game state
 let gameState = null;
@@ -105,6 +106,44 @@ let animationFrameId = null;
 let showDebugBoxes = false; // Debug flag
 let countdownActive = false;
 let countdownValue = 0;
+let isMobileFullscreenMode = false;
+
+// Function to check if device is mobile
+function isMobileDevice() {
+    return (window.innerWidth <= 768);
+}
+
+// Function to toggle mobile fullscreen mode
+function toggleMobileFullscreenMode(enable) {
+    if (!isMobileDevice()) return;
+    
+    document.body.classList.toggle('mobile-fullscreen-game', enable);
+    isMobileFullscreenMode = enable;
+    
+    // Add exit button if entering fullscreen mode
+    if (enable) {
+        // Create exit fullscreen button if it doesn't exist
+        let exitBtn = document.querySelector('.exit-fullscreen');
+        if (!exitBtn) {
+            exitBtn = document.createElement('button');
+            exitBtn.className = 'exit-fullscreen';
+            exitBtn.innerHTML = '✕';
+            exitBtn.addEventListener('click', () => {
+                toggleMobileFullscreenMode(false);
+            });
+            document.body.appendChild(exitBtn);
+        }
+    } else {
+        // Remove exit button if exiting fullscreen mode
+        const exitBtn = document.querySelector('.exit-fullscreen');
+        if (exitBtn) {
+            exitBtn.remove();
+        }
+    }
+    
+    // Force resize the canvas after toggling fullscreen
+    setTimeout(resizeGameCanvas, 100);
+}
 
 // Canvas sizing
 function resizeGameCanvas() {
@@ -231,6 +270,9 @@ socket.on('game_started', () => {
         adminGameControls.style.display = 'block';
     }
     
+    // Toggle mobile fullscreen mode
+    toggleMobileFullscreenMode(true);
+    
     // Start game loop
     startGameLoop();
 });
@@ -284,6 +326,9 @@ socket.on('game_reset', () => {
     
     // Hide game over modal if visible
     gameOverModal.classList.add('hidden');
+    
+    // Exit mobile fullscreen mode
+    toggleMobileFullscreenMode(false);
 });
 
 // Game controls
