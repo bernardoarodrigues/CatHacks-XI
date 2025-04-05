@@ -22,6 +22,17 @@ def game_state_updater():
             # Get the raw game state from the game manager
             game_state = game_manager.get_game_state()
             
+            # Check for countdown status - game isn't truly started until countdown finishes
+            if "_metadata" in game_state and "_metadata" in game_state and "countdown" in game_state["_metadata"]:
+                countdown_info = game_state["_metadata"]["countdown"]
+                if countdown_info["active"]:
+                    # Countdown is still active, just send the state but don't check for game over yet
+                    enhanced_state = _enhance_game_state(game_state)
+                    socketio.emit('game_state', enhanced_state)
+                    last_game_state = enhanced_state
+                    time.sleep(0.1)
+                    continue
+            
             # Check for game over
             if "_metadata" in game_state and game_state["_metadata"]["game_over"]:
                 # Game has ended
@@ -46,28 +57,7 @@ def game_state_updater():
                 game_in_progress = False
             
             # Enhance the game state with player information
-            enhanced_state = {
-                "game_data": game_state,
-                "players_info": {}
-            }
-            
-            # Add player details to the enhanced state
-            for player_id, player_info in players.items():
-                # Create default player data
-                player_data = {
-                    "id": player_id,
-                    "username": player_info["username"],
-                    "isAdmin": player_info["isAdmin"],
-                    "score": 0,
-                    "alive": False
-                }
-                
-                # Update with game state if available
-                if player_id in game_state:
-                    player_data["score"] = game_state[player_id]["score"]
-                    player_data["alive"] = game_state[player_id]["alive"]
-                
-                enhanced_state["players_info"][player_id] = player_data
+            enhanced_state = _enhance_game_state(game_state)
             
             # Send the enhanced state to all clients
             socketio.emit('game_state', enhanced_state)
@@ -82,15 +72,39 @@ def game_state_updater():
             
         time.sleep(0.1)  # Update 10 times per second
 
+# Helper function to enhance game state with player information
+def _enhance_game_state(game_state):
+    enhanced_state = {
+        "game_data": game_state,
+        "players_info": {}
+    }
+    
+    # Add player details to the enhanced state
+    for player_id, player_info in players.items():
+        # Create default player data
+        player_data = {
+            "id": player_id,
+            "username": player_info["username"],
+            "isAdmin": player_info["isAdmin"],
+            "score": 0,
+            "alive": False
+        }
+        
+        # Update with game state if available
+        if player_id in game_state:
+            player_data["score"] = game_state[player_id]["score"]
+            player_data["alive"] = game_state[player_id]["alive"]
+        
+        enhanced_state["players_info"][player_id] = player_data
+        
+    return enhanced_state
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @socketio.on('connect')
 def handle_connect():
-    player_id = request.sid
-    # Don't add to game_manager yet until they join the game
-    
     # Send current game state to the new connection
     if last_game_state:
         emit('game_state', last_game_state)

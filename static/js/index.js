@@ -96,30 +96,52 @@ const loadingIndicator = document.getElementById('loading-indicator');
 const playersScores = document.getElementById('players-scores');
 const gameOverModal = document.getElementById('game-over-modal');
 const winnerAnnouncement = document.getElementById('winner-announcement');
+const playersAliveElem = document.getElementById('players-alive');
 
 // Game state
 let gameState = null;
 let playersInfo = {};
 let animationFrameId = null;
 let showDebugBoxes = false; // Debug flag
+let countdownActive = false;
+let countdownValue = 0;
 
 // Canvas sizing
 function resizeGameCanvas() {
     const container = document.getElementById('game-canvas-container');
-    const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    gameCanvas.width = containerWidth;
+    // Get the container's current computed dimensions
+    const computedStyle = window.getComputedStyle(container);
+    
+    // Set canvas dimensions to match container
+    gameCanvas.width = parseInt(computedStyle.width);
     gameCanvas.height = containerHeight;
     
+    // Force the container to be visible
+    container.style.display = 'block';
+    
     // If we have a game state, render it
-    if (gameState) {
+    if (gameState && gameAssets.loaded) {
         renderGame();
+    } else {
+        // Draw something on the canvas to make sure it's visible even without game state
+        const ctx = gameCanvasContext;
+        ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        ctx.fillStyle = '#87CEEB'; // Sky blue
+        ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+        ctx.fillStyle = 'white';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game loading...', gameCanvas.width / 2, gameCanvas.height / 2);
     }
+    
+    console.log(`Canvas resized: ${gameCanvas.width}x${gameCanvas.height}`);
 }
 
 // Call resize on window resize
 window.addEventListener('resize', resizeGameCanvas);
+window.addEventListener('load', resizeGameCanvas);
 
 // Join game button
 document.getElementById('join-btn').addEventListener('click', () => {
@@ -194,14 +216,6 @@ socket.on('game_started', () => {
     lobbySection.style.display = 'none';
     gameSection.style.display = 'block';
     currentUser.inGame = true;
-    
-    // Reset game controls to default state
-    document.getElementById('game-controls').innerHTML = `
-        <div class="game-instructions">
-            <p>Press <span class="key-hint">SPACE</span> to flap your bird!</p>
-            <p>Survive longer than your opponents to win!</p>
-        </div>
-    `;
     
     // Hide game over modal if visible
     gameOverModal.classList.add('hidden');
@@ -344,9 +358,6 @@ function renderGame() {
     
     // Draw pipes
     if (gameData.pipes) {
-        // For debugging
-        console.log("Pipe data:", gameData.pipes);
-        
         // First draw all lower pipes
         gameData.pipes.forEach(pipe => {
             const pipeX = pipe.x * scaleX;
@@ -370,8 +381,6 @@ function renderGame() {
             const lowerY = pipe.lower_y * scaleY;
             const pipeWidth = (gameData.pipe_width || 52) * scaleX;
             const gap = lowerY - upperY;
-            
-            console.log(`Pipe at x=${pipeX}: Upper height=${upperY}, Lower y=${lowerY}, Gap=${gap}`);
             
             // Upper pipe - now use the same green color as lower pipes
             ctx.fillStyle = '#74BF2E'; // Match the lower pipe color
@@ -466,9 +475,6 @@ function renderGame() {
     }
     
     // Draw players (birds)
-    const playerColors = ['yellow', 'blue', 'red']; // Available bird colors
-    let colorIndex = 0;
-    
     for (const playerId in gameState) {
         if (playerId === '_metadata') continue;
         
@@ -485,24 +491,8 @@ function renderGame() {
         const playerWidth = 34 * scaleX;
         const playerHeight = 24 * scaleY;
         
-        // Determine bird color (cycle through available colors for different players)
-        const birdColor = playerColors[colorIndex % playerColors.length];
-        colorIndex++;
-        
-        // Highlight current player's bird
-        if (playerId === currentUser.id) {
-            // Draw a highlight around current player's bird
-            ctx.beginPath();
-            ctx.arc(
-                playerX + playerWidth/2, 
-                playerY + playerHeight/2, 
-                22 * scaleX, 
-                0, 
-                Math.PI * 2
-            );
-            ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
-            ctx.fill();
-        }
+        // Check if this is the current player
+        const isCurrentPlayer = playerId === currentUser.id;
         
         // Apply rotation to the bird
         ctx.save();
@@ -510,14 +500,31 @@ function renderGame() {
         ctx.rotate(playerPos.rotation * Math.PI / 180);
         ctx.translate(-(playerX + playerWidth/2), -(playerY + playerHeight/2));
         
-        // Draw the bird
-        ctx.drawImage(
-            gameAssets.bird[birdColor], 
-            playerX, 
-            playerY, 
-            playerWidth, 
-            playerHeight
-        );
+        // Set opacity based on whether this is current player or another player
+        if (isCurrentPlayer) {
+            // Current player: full opacity, orange color (using red bird for orange)
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(
+                gameAssets.bird.red, // Using red bird for orange color
+                playerX, 
+                playerY, 
+                playerWidth, 
+                playerHeight
+            );
+        } else {
+            // Other players: blue with dimmed opacity (ghost-like)
+            ctx.globalAlpha = 0.6; // Dimmed opacity for ghost effect
+            ctx.drawImage(
+                gameAssets.bird.blue,
+                playerX, 
+                playerY, 
+                playerWidth, 
+                playerHeight
+            );
+        }
+        
+        // Reset opacity
+        ctx.globalAlpha = 1.0;
         
         // Restore context
         ctx.restore();
@@ -532,7 +539,7 @@ function renderGame() {
         // Display player name above bird
         if (playersInfo && playersInfo[playerId]) {
             const playerName = playersInfo[playerId].username;
-            ctx.fillStyle = playerId === currentUser.id ? '#00ff00' : '#ffffff';
+            ctx.fillStyle = playerId === currentUser.id ? '#ff8c00' : '#ffffff'; // Orange color for current player
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 2;
             ctx.font = `${12 * scaleX}px Arial`;
@@ -540,6 +547,55 @@ function renderGame() {
             ctx.strokeText(playerName, playerX + playerWidth/2, playerY - 10 * scaleY);
             ctx.fillText(playerName, playerX + playerWidth/2, playerY - 10 * scaleY);
         }
+    }
+    
+    // Check if countdown is active and draw it
+    if (metadata.countdown && metadata.countdown.active) {
+        countdownActive = true;
+        countdownValue = Math.ceil(metadata.countdown.remaining);
+        
+        // Draw a semi-transparent overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw countdown text
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 8;
+        
+        // Use a large font size that scales with the canvas
+        const fontSize = Math.min(canvas.width, canvas.height) * 0.25;
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Position the countdown in the center of the screen
+        const textX = canvas.width / 2;
+        const textY = canvas.height / 2;
+        
+        // Draw "GET READY" text
+        const getReadyFontSize = fontSize * 0.3;
+        ctx.font = `bold ${getReadyFontSize}px Arial`;
+        ctx.strokeText('GET READY!', textX, textY - fontSize * 0.7);
+        ctx.fillText('GET READY!', textX, textY - fontSize * 0.7);
+        
+        // Draw the countdown number with a drop shadow effect
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+        
+        ctx.strokeText(countdownValue, textX, textY);
+        ctx.fillText(countdownValue, textX, textY);
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+    } else {
+        countdownActive = false;
     }
 }
 
@@ -552,19 +608,14 @@ function updateGameDisplay(enhancedState) {
     if (gameData && gameData[currentUser.id]) {
         playerState = gameData[currentUser.id];
         
-        // Update score in multiple places
-        const scoreValue = Math.floor(playerState.score);  // Convert to integer
-        document.getElementById('score').textContent = 'Score: ' + scoreValue;
+        // Update score in overlay
+        const scoreValue = Math.floor(playerState.score);
         gameOverlayScore.textContent = 'Score: ' + scoreValue;
         
-        // Show game over message if player is dead
+        // Show notification if player is dead
         if (!playerState.alive) {
-            document.getElementById('game-controls').innerHTML = `
-                <div class="game-instructions" style="background-color: #ffebee; border-left-color: #f44336;">
-                    <p>Game Over! Your bird has crashed!</p>
-                    <p>Waiting for other players to finish...</p>
-                </div>
-            `;
+            // Create a toast notification instead of changing the instruction box
+            // showNotification('Game Over! Your bird has crashed. Waiting for other players to finish...', 'error');
         }
     }
     
@@ -581,7 +632,7 @@ function updateGameDisplay(enhancedState) {
             
         playersAlive = Object.values(filteredGameState).filter(p => p.alive).length;
     }
-    document.getElementById('players-alive').textContent = 'Players Alive: ' + playersAlive;
+    playersAliveElem.textContent = 'Players Alive: ' + playersAlive;
 }
 
 function updatePlayersScoreboard(playersInfo) {
@@ -613,6 +664,34 @@ function updatePlayersScoreboard(playersInfo) {
 window.addEventListener('load', () => {
     loadingIndicator.style.display = 'none';
 });
+
+// Show notification function
+function showNotification(message, type = 'info') {
+    // Create a toast notification
+    const toast = document.createElement('div');
+    toast.className = 'notification-toast';
+    toast.textContent = message;
+    
+    // Set style based on type
+    if (type === 'error') {
+        toast.style.backgroundColor = '#ffebee';
+        toast.style.borderLeft = '4px solid #f44336';
+    } else if (type === 'success') {
+        toast.style.backgroundColor = '#e8f5e9';
+        toast.style.borderLeft = '4px solid #4caf50';
+    } else {
+        toast.style.backgroundColor = '#e3f2fd';
+        toast.style.borderLeft = '4px solid #2196f3';
+    }
+    
+    document.body.appendChild(toast);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(toast), 500);
+    }, 5000);
+}
 
 // Keep track of test mode status
 let testModeEnabled = false;
@@ -666,21 +745,9 @@ socket.on('test_mode_status', (data) => {
         const notificationText = data.enabled 
             ? 'Test Mode enabled: Players will never die and game continues indefinitely.' 
             : 'Test Mode disabled: Normal game rules apply.';
-            
-        // Show a notification toast
-        const toast = document.createElement('div');
-        toast.className = 'notification-toast';
-        toast.textContent = notificationText;
-        toast.style.backgroundColor = data.enabled ? '#fff3e0' : '#f1f8e9';
-        toast.style.borderLeft = `4px solid ${data.enabled ? '#ff9800' : '#8bc34a'}`;
         
-        document.body.appendChild(toast);
-        
-        // Remove after 5 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => document.body.removeChild(toast), 500);
-        }, 5000);
+        // Use our notification function instead
+        showNotification(notificationText, data.enabled ? 'info' : 'success');
     }
 });
 
