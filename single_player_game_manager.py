@@ -138,12 +138,10 @@ class SinglePlayerGameManager:
             if not self.game_running or not self.player_data["alive"]:
                 return
             
-            if action == 1:  # Flap
-                # Update player velocity to simulate a flap
-                # The actual flap will be processed in the game loop
-                self.player_action = 1
-            else:
-                self.player_action = 0
+            # Set player action based on frontend input
+            # Action 1 = flap (spacebar press)
+            # Action 0 = do nothing (default)
+            self.player_action = action
 
     def get_game_state(self):
         """Get the current game state for frontend rendering"""

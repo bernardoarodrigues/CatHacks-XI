@@ -112,7 +112,9 @@ let isMobileFullscreenMode = false;
 
 // Function to check if device is mobile
 function isMobileDevice() {
-    return (window.innerWidth <= 768);
+    return (window.innerWidth <= 768) || 
+           navigator.userAgent.match(/Android/i) || 
+           navigator.userAgent.match(/iPhone|iPad|iPod/i);
 }
 
 // Function to toggle mobile fullscreen mode
@@ -121,6 +123,12 @@ function toggleMobileFullscreenMode(enable) {
     
     document.body.classList.toggle('mobile-fullscreen-game', enable);
     isMobileFullscreenMode = enable;
+    
+    // Update fullscreen button text
+    const fullscreenBtn = document.getElementById('toggle-fullscreen');
+    if (fullscreenBtn) {
+        fullscreenBtn.textContent = enable ? 'Exit Fullscreen' : 'Go Fullscreen';
+    }
     
     // Add exit button if entering fullscreen mode
     if (enable) {
@@ -147,9 +155,11 @@ function toggleMobileFullscreenMode(enable) {
     setTimeout(resizeGameCanvas, 100);
 }
 
-// Canvas sizing
+// Canvas sizing with improved responsive handling
 function resizeGameCanvas() {
     const container = document.getElementById('game-canvas-container');
+    if (!container) return;
+    
     const containerHeight = container.clientHeight;
     
     // Get the container's current computed dimensions
@@ -163,26 +173,69 @@ function resizeGameCanvas() {
     container.style.display = 'block';
     
     // If we have a game state, render it
-    if (gameState && gameAssets.loaded) {
-        renderGame();
+    if ((gameState && gameAssets.loaded) || (currentUser.inAiGame && aiGameState && gameAssets.loaded)) {
+        if (currentUser.inAiGame) {
+            renderAiGame();
+        } else {
+            renderGame();
+        }
     } else {
         // Draw something on the canvas to make sure it's visible even without game state
         const ctx = gameCanvasContext;
         ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
         ctx.fillStyle = '#87CEEB'; // Sky blue
         ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+        
+        // Draw some clouds to make it look nicer while loading
+        drawClouds(ctx);
+        
         ctx.fillStyle = 'white';
-        ctx.font = '20px Arial';
+        ctx.font = 'bold 20px Arial';
         ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
         ctx.fillText('Game loading...', gameCanvas.width / 2, gameCanvas.height / 2);
+        ctx.shadowColor = 'transparent';
     }
     
     console.log(`Canvas resized: ${gameCanvas.width}x${gameCanvas.height}`);
 }
 
+// Draw decorative clouds on the canvas
+function drawClouds(ctx) {
+    const clouds = [
+        { x: gameCanvas.width * 0.1, y: gameCanvas.height * 0.2, size: 40 },
+        { x: gameCanvas.width * 0.5, y: gameCanvas.height * 0.15, size: 50 },
+        { x: gameCanvas.width * 0.8, y: gameCanvas.height * 0.25, size: 35 },
+    ];
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    
+    clouds.forEach(cloud => {
+        // Draw a cloud shape
+        ctx.beginPath();
+        ctx.arc(cloud.x, cloud.y, cloud.size, 0, Math.PI * 2);
+        ctx.arc(cloud.x + cloud.size * 0.6, cloud.y - cloud.size * 0.1, cloud.size * 0.7, 0, Math.PI * 2);
+        ctx.arc(cloud.x + cloud.size * 1.1, cloud.y + cloud.size * 0.1, cloud.size * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
 // Call resize on window resize
 window.addEventListener('resize', resizeGameCanvas);
 window.addEventListener('load', resizeGameCanvas);
+
+// Add event listener for fullscreen toggle button
+document.addEventListener('DOMContentLoaded', () => {
+    const fullscreenBtn = document.getElementById('toggle-fullscreen');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            toggleMobileFullscreenMode(!isMobileFullscreenMode);
+        });
+    }
+});
 
 // Join game button
 document.getElementById('join-btn').addEventListener('click', () => {
@@ -455,31 +508,31 @@ socket.on('ai_game_reset', () => {
     startAiGameLoop();
 });
 
-// Game controls
+// Game controls for both multiplayer and single-player mode
 document.addEventListener('keydown', (event) => {
-    if (currentUser.inGame && event.code === 'Space') {
-        socket.emit('update_position', {
-            playerId: currentUser.id,
-            action: 1  // Flap
-        });
+    if (event.code === 'Space') {
         event.preventDefault(); // Prevent scrolling on space
+        
+        // Handle key controls for multiplayer mode
+        if (currentUser.inGame) {
+            socket.emit('update_position', {
+                playerId: currentUser.id,
+                action: 1  // Flap
+            });
+        }
+        
+        // Handle key controls for AI game mode
+        if (currentUser.inAiGame) {
+            socket.emit('update_ai_position', {
+                action: 1  // Flap
+            });
+        }
     }
     
     // Add debug toggle with 'D' key
     if (event.code === 'KeyD') {
         showDebugBoxes = !showDebugBoxes;
         console.log(`Debug boxes ${showDebugBoxes ? 'enabled' : 'disabled'}`);
-    }
-});
-
-// Add AI game controls
-document.addEventListener('keydown', (event) => {
-    // Handle key controls for AI game mode
-    if (currentUser.inAiGame && event.code === 'Space') {
-        socket.emit('update_ai_position', {
-            action: 1  // Flap
-        });
-        event.preventDefault(); // Prevent scrolling on space
     }
 });
 
@@ -1114,31 +1167,6 @@ function showNotification(message, type = 'info') {
 
 // Keep track of test mode status
 let testModeEnabled = false;
-
-// Test mode toggle button
-document.getElementById('toggle-test-mode-btn').addEventListener('click', () => {
-    if (currentUser.isAdmin) {
-        testModeEnabled = !testModeEnabled;
-        socket.emit('toggle_test_mode', {
-            enabled: testModeEnabled
-        });
-        
-        // Update button appearance
-        updateTestModeButton();
-    }
-});
-
-// Update test mode button appearance
-function updateTestModeButton() {
-    const btn = document.getElementById('toggle-test-mode-btn');
-    if (testModeEnabled) {
-        btn.classList.add('test-mode-active');
-        btn.textContent = 'Test Mode: ON';
-    } else {
-        btn.classList.remove('test-mode-active');
-        btn.textContent = 'Toggle Test Mode';
-    }
-}
 
 // Test mode toggle functionality
 document.getElementById('test-mode-toggle').addEventListener('change', function() {

@@ -2,14 +2,15 @@
 <html>
 <head>
     <title>FlappyNite - Flappy Bird Battle Royale</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" type="text/css" href="/static/css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="/static/js/index.js" defer></script>
 </head>
 <body>
     <div id="login-section" class="welcome-section">
-        <!-- <img src="/static/sprites/welcome.png" alt="FlappyNite Logo" class="welcome-background"> -->
         <div class="form-container">
+            <h1 class="login-title">FlappyNite</h1>
             <input type="text" id="username" placeholder="Username" style="width: 220px; padding-top: 15px; padding-bottom: 15px;">
             <label><input type="checkbox" id="admin-checkbox"> Join as Admin</label>
             <button id="join-btn" style="width: 250px; padding-top: 15px; padding-bottom: 15px;">Join Game</button>
@@ -66,6 +67,11 @@
                     <button id="reset-game-btn" class="reset-button">Reset Game</button>
                 </div>
             </div>
+        </div>
+        
+        <!-- Mobile fullscreen toggle -->
+        <div class="mobile-controls">
+            <button id="toggle-fullscreen" class="fullscreen-button">Go Fullscreen</button>
         </div>
     </div>
     
