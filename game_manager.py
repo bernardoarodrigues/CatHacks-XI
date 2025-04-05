@@ -325,11 +325,11 @@ class GameManager:
                         break
                         
                     # Only one player left alive - we have a winner!
-                    # if len(alive_players) == 1 and len(self.players) > 1:
-                    #     self.winner = alive_players[0]
-                    #     self.game_over = True
-                    #     self.game_running = False
-                    #     break
+                    if len(alive_players) == 1 and len(self.players) > 1:
+                        self.winner = alive_players[0]
+                        self.game_over = True
+                        self.game_running = False
+                        break
                         
         except Exception as e:
             print(f"Error in game loop: {e}")
