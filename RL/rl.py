@@ -5,6 +5,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'e
 import flappy_bird_gymnasium
 import gymnasium
 from flappy_env import MultiplayerFlappyEnv
+import pickle
+import numpy as np
 # from stable_baselines3 import PPO
 
 # Create environment
@@ -15,24 +17,21 @@ env = gymnasium.make("FlappyBird-v0", render_mode="human", use_lidar=False)
 # env.player_id = "ai_agent"
 # env.add_player("ai_agent")
 
-# Create and train a PPO agent
-# model = PPO("MlpPolicy", env, verbose=1)
-# model.learn(total_timesteps=10000)
 
-# Use the trained model
+with open("./saved_policies/QTable-EG.pkl", "rb") as f:
+    q_table = pickle.load(f)
+
 obs, _ = env.reset()
+obs = [int(x) for x in obs]
 done = False
 while not done:
 
-    # random policy
-    action = env.action_space.sample()
-
-    # action, _ = model.predict(obs)
+    action = np.argmax(q_table[tuple(obs)])
+    print("TAKING ACTION: ", action)
 
     obs, reward, done, truncated, info = env.step(action)
+    obs = [int(x) for x in obs]
     # print(f"Action {action} gave {reward} reward...")
     print(obs, reward, done, truncated, info)
-
-    # done = False
 
 env.close()
