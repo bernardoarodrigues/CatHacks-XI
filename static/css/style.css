@@ -100,13 +100,11 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
-    max-width: 500px;
+    width: 288px;
 }
 
 .game-sidebar {
     width: 300px;
-    max-width: 300px;
     display: flex;
     flex-direction: column;
     flex: 0 0 auto;
@@ -116,23 +114,20 @@ body {
 
 /* Game Canvas */
 #game-canvas-container {
-    position: relative;
-    width: 100%;
+    width: 288px;
     background-color: #87CEEB;
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    margin: 0 auto;
-    max-height: 70vh;
-    aspect-ratio: 0.56; /* Slightly wider aspect ratio for better visibility */
+    max-height: 70vh; /* Slightly wider aspect ratio for better visibility */
     border: 3px solid rgba(255, 255, 255, 0.3);
     transition: all 0.3s ease;
 }
 
 #game-canvas {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 288px;
+    height: 512px;
 }
 
 /* Game overlays */
@@ -409,15 +404,21 @@ body {
     }
     
     .controls-hint {
-        bottom: 30px;
-        font-size: 16px;
-        padding: 12px 24px;
+        display: none;
     }
-    
-    /* Add touch indicator for mobile */
-    .controls-hint::after {
-        content: " or Tap Screen";
-        display: inline-block;
+
+    .controls-hint-mobile {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-size: 14px;
+        white-space: nowrap;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
 
     /* Show mobile controls only on mobile devices */

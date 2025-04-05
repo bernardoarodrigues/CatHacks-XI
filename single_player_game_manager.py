@@ -126,9 +126,16 @@ class SinglePlayerGameManager:
                     self.env.close()
                 except:
                     pass
+
+            if hasattr(self, 'player_env') and self.player_env:
+                try:
+                    self.player_env.close()
+                except:
+                    pass
             
             try:
-                self.env = gym.make("FlappyBird-v0", render_mode=None)
+                self.env = gym.make("FlappyBird-v0", render_mode=None, use_lidar=False)
+                self.player_env = gym.make("FlappyBird-v0", render_mode=None, use_lidar=False)
             except Exception as e:
                 print(f"Error creating environment: {e}")
 
@@ -151,10 +158,6 @@ class SinglePlayerGameManager:
     def _game_loop(self):
         """Main game loop that runs in a separate thread"""
         try:
-            # Initialize environment
-            self.env = gym.make("FlappyBird-v0", render_mode=None)
-            observation, _ = self.env.reset()
-            
             # Track player and AI actions
             self.player_action = 0
             
@@ -190,11 +193,14 @@ class SinglePlayerGameManager:
                     "active": False,
                     "remaining": 0
                 }
-            
-            # Reset environment to start fresh after countdown
+
+            # Initialize environments
+            self.env = gym.make("FlappyBird-v0", render_mode=None, use_lidar=False)
+            self.player_env = gym.make("FlappyBird-v0", render_mode=None, use_lidar=False)
+
+            # Reset both environments
             observation, _ = self.env.reset()
-            self.player_env = gym.make("FlappyBird-v0", render_mode=None)
-            player_obs, _ = self.player_env.reset()
+            player_observation, _ = self.player_env.reset()
             
             # Main game loop
             while self.game_running and not self.game_over:
@@ -231,10 +237,13 @@ class SinglePlayerGameManager:
                     self.ai_data["alive"] = not ai_terminated
                     self.ai_data["score"] += ai_reward if not ai_terminated else 0
                     
+                    # Make sure AI data is properly updated in the game state
+                    self.game_state["ai"] = self.ai_data
+                    
                     # Update player position
                     self.player_data["position"]["y"] = self.player_env.unwrapped._player_y
                     self.player_data["position"]["rotation"] = -30 if player_action == 1 else 30
-                    self.player_data["alive"] = not player_terminated
+                    self.player_data["alive"] = True #not player_terminated
                     self.player_data["score"] += player_reward if not player_terminated else 0
                     
                     # Update pipe data for rendering

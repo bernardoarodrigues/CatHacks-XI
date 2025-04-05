@@ -1201,8 +1201,3 @@ socket.on('test_mode_status', (data) => {
         showNotification(notificationText, data.enabled ? 'info' : 'success');
     }
 });
-
-// Initialize button on load
-window.addEventListener('load', () => {
-    updateTestModeButton();
-});

@@ -37,7 +37,7 @@ def game_state_updater():
                     enhanced_state = _enhance_game_state(game_state)
                     socketio.emit('game_state', enhanced_state)
                     last_game_state = enhanced_state
-                    time.sleep(0.1)
+                    time.sleep(0.033)
                     continue
             
             # Check for game over
