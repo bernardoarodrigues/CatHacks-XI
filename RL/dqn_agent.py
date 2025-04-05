@@ -8,13 +8,16 @@ from flappy_bird_gymnasium.tests.dueling import DuelingDQN
 from flappy_bird_gymnasium.tests.dueling_v2 import DuelingDQN as DuelingDQN_v2
 from flappy_bird_gymnasium.tests.framestack import FrameStack
 
-print(MODEL_PATH)
+import tensorflow as tf
+from tensorflow.keras import layers
+
+
 
 plt.ion()
 
 
 def play(
-    epoch=500, audio_on=False, render_mode="human", use_lidar=True, score_limit=None
+    epoch=500, audio_on=False, render_mode="human", use_lidar=False, score_limit=None
 ):
     env = gymnasium.make(
         "FlappyBird-v0",
@@ -35,7 +38,10 @@ def play(
     else:
         q_model = DuelingDQN(env.action_space.n)
         q_model.build((None, *env.observation_space.shape))
-        q_model.load_weights(MODEL_PATH + "/model.h5")
+        q_model.load_weights(MODEL_PATH + "\model.h5")
+
+        # q_model = tf.keras.models.load_model(MODEL_PATH + "\model.h5")
+        # q_model.summary()
 
     q_model.summary()
 
@@ -93,4 +99,4 @@ def play(
 
 
 if __name__ == "__main__":
-    play(epoch=500, audio_on=False, use_lidar=False, score_limit=None)
+    play(epoch=10, audio_on=False, use_lidar=False, score_limit=None)
