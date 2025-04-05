@@ -21,13 +21,13 @@ class CustomFlappyBirdEnv(FlappyBirdEnv):
         print(f"Initialized CustomFlappyBirdEnv with pipe gap: {self._pipe_gap_size}")
     
     def _get_pipe_pos(self):
-        """Generate random pipe position with fixed gap."""
+        """Generate random pipe position with fixed gap directly in the correct position."""
         # Constants for reliable pipe generation
         min_pipe_height = 60  # Minimum height for any pipe
         ground_y = self._screen_height - 112  # Typical ground position
         screen_height = self._screen_height
         
-        # Determine valid range for upper pipe height
+        # Calculate maximum valid upper pipe height to ensure gap fits
         max_upper_pipe_height = screen_height - self._pipe_gap_size - min_pipe_height - 100  # 100px buffer from ground
         max_upper_pipe_height = max(max_upper_pipe_height, min_pipe_height + 50)  # Ensure sufficient range
         
@@ -37,34 +37,28 @@ class CustomFlappyBirdEnv(FlappyBirdEnv):
         # Calculate lower pipe position to ensure EXACTLY the fixed gap
         lower_pipe_y = upper_pipe_height + self._pipe_gap_size
         
-        # Final validation
+        # Final safety check to ensure pipes fit on screen
         if lower_pipe_y + min_pipe_height > ground_y:
-            # Adjust both pipes to maintain gap while ensuring lower pipe has minimum height
-            adjustment = (lower_pipe_y + min_pipe_height) - ground_y
-            upper_pipe_height -= adjustment
+            upper_pipe_height = ground_y - self._pipe_gap_size - min_pipe_height
             lower_pipe_y = upper_pipe_height + self._pipe_gap_size
-            
-            # Extra sanity check: upper pipe must have minimum height
-            if upper_pipe_height < min_pipe_height:
-                # This is a failsafe - in this case, adjust the gap slightly
-                upper_pipe_height = min_pipe_height
-                lower_pipe_y = upper_pipe_height + self._pipe_gap_size
-                # If we still can't fit it, lower the ground height (not ideal but safer than crashing)
-                if lower_pipe_y + min_pipe_height > ground_y:
-                    # We'll warn but still have a valid state
-                    print(f"WARNING: Gap ({self._pipe_gap_size}) is too large for this screen height, pipes may look unusual")
         
-        # Debug info
-        lower_pipe_height = ground_y - lower_pipe_y
-        print(f"Generated pipe - Upper height: {upper_pipe_height}, Lower y: {lower_pipe_y}, Lower height: {lower_pipe_height}, Gap: {self._pipe_gap_size}")
+        # Create the pipes with correct position
+        x_position = self._screen_width + 10  # Starting beyond right edge of screen
         
-        return {
-            "x": self._screen_width + 10,
+        upper_pipe = {
+            "x": x_position,
             "y": upper_pipe_height
-        }, {
-            "x": self._screen_width + 10,
+        }
+        
+        lower_pipe = {
+            "x": x_position,
             "y": lower_pipe_y
         }
+        
+        # Log the generated pipe positions for verification
+        print(f"Generated pipe - Upper height: {upper_pipe_height}, Lower y: {lower_pipe_y}, Gap: {self._pipe_gap_size}")
+        
+        return upper_pipe, lower_pipe
         
     def reset(self, seed=None, options=None):
         """Reset the environment and use our custom pipe position generator."""
@@ -144,7 +138,7 @@ class CustomFlappyBirdEnv(FlappyBirdEnv):
                 
                 # Replace with our custom pipe with correct gap
                 upper_pipe, lower_pipe = self._get_pipe_pos()
-                # Keep x position we just determined
+                # Only keep the x position to maintain pipe movement
                 upper_pipe['x'] = self._upper_pipes[rightmost_index]['x']
                 lower_pipe['x'] = self._lower_pipes[rightmost_index]['x']
                 # Update pipe

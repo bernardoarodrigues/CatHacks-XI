@@ -201,14 +201,13 @@ class MultiplayerFlappyEnv:
                 
                 # 2. Check if we need to add a new pipe - with stricter conditions
                 screen_width = self.unwrapped._screen_width
-                
+
                 # Check if there are any pipes at all
                 if len(self.unwrapped._upper_pipes) == 0:
                     # No pipes at all - add the first one
                     if hasattr(self.base_env, '_get_pipe_pos'):
                         upper_pipe, lower_pipe = self.base_env._get_pipe_pos()
-                        upper_pipe['x'] = screen_width + 100
-                        lower_pipe['x'] = screen_width + 100
+                        # No need to modify positions - they're already correct
                         
                         # Add the new pipes
                         self.unwrapped._upper_pipes.append(upper_pipe)
@@ -218,17 +217,13 @@ class MultiplayerFlappyEnv:
                     rightmost_x = max(pipe['x'] for pipe in self.unwrapped._upper_pipes)
                     
                     # Only add a new pipe when the rightmost pipe is sufficiently into the screen
-                    # This prevents creating too many pipes too quickly
                     if rightmost_x < screen_width - 150:
                         # Get pipe positions from CustomFlappyBirdEnv
                         if hasattr(self.base_env, '_get_pipe_pos'):
                             upper_pipe, lower_pipe = self.base_env._get_pipe_pos()
-                            # Place the new pipe with more space to prevent too many pipes
-                            new_x = screen_width + 100
-                            upper_pipe['x'] = new_x
-                            lower_pipe['x'] = new_x
+                            # No need to modify positions - they're already correct
                             
-                            # Add the new pipes
+                            # Add the new pipes directly
                             self.unwrapped._upper_pipes.append(upper_pipe)
                             self.unwrapped._lower_pipes.append(lower_pipe)
                         

@@ -14,7 +14,7 @@ class GameManager:
         self.game_running = False
         self.winner = None
         self.game_over = False
-        self.frame_rate = 30  # Target frame rate for game loop
+        self.frame_rate = 40 # Target frame rate for game loop
         self.last_frame_time = 0
         
         # Game dimensions

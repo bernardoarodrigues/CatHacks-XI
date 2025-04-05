@@ -2,7 +2,7 @@ body {
     font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #cdcdcd;
+    background-color: #21b234;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -131,6 +131,7 @@ input[type="text"]:focus {
     justify-content: center;
     align-items: flex-start;
     flex-wrap: wrap;
+    height: calc(70vh + 50px); /* Set a defined height based on game canvas */
 }
 
 /* Game Content */
@@ -145,8 +146,12 @@ input[type="text"]:focus {
 
 .game-sidebar {
     width: 300px;
+    max-width: 300px;
     display: flex;
     flex-direction: column;
+    flex: 1; /* Fill parent height */
+    overflow-y: auto; /* Add scrolling for content that overflows */
+    max-height: 70vh; /* Match game canvas height */
 }
 
 /* Game Canvas */
@@ -224,11 +229,21 @@ input[type="text"]:focus {
 
 /* Scoreboard */
 .players-scoreboard {
-    background-color: white;
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto; /* Enable vertical scrolling */
+    max-height: 100%; /* Take full height of parent */
+}
+
+#players-scores {
+    flex: 1; /* Take all available space */
+    overflow-y: auto; /* Add scrolling if content overflows */
+    display: flex;
+    flex-direction: column;
 }
 
 .scoreboard-title {
