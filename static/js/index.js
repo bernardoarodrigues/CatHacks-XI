@@ -269,47 +269,6 @@ document.getElementById('join-btn').addEventListener('click', () => {
     }
 });
 
-// Play against AI button
-document.getElementById('play-ai-btn').addEventListener('click', () => {
-    const username = document.getElementById('username').value.trim() || 'Player';
-    
-    // Set user info
-    currentUser.username = username;
-    currentUser.inAiGame = true;
-    
-    // Start AI game
-    socket.emit('start_ai_game', {
-        username: username
-    });
-    
-    // Hide login, show game section
-    loginSection.style.display = 'none';
-    gameSection.style.display = 'block';
-    
-    // Update UI for AI game
-    playersAliveElem.textContent = 'AI Battle';
-    
-    // Hide game over modal if visible
-    gameOverModal.classList.add('hidden');
-    
-    // Hide admin controls
-    adminControls.style.display = 'none';
-    adminGameControls.style.display = 'none';
-    
-    // Setup canvas size
-    resizeGameCanvas();
-    
-    // Load game assets if not already loaded
-    if (!gameAssets.loaded) {
-        loadGameAssets();
-    } else {
-        loadingIndicator.style.display = 'none';
-    }
-    
-    // Start game loop
-    startAiGameLoop();
-});
-
 // Admin: Start game button
 document.getElementById('start-game-btn').addEventListener('click', () => {
     if (currentUser.isAdmin) {
@@ -416,7 +375,7 @@ socket.on('game_over', (data) => {
         winnerAnnouncement.innerHTML = `
             <p>Winner is:</p>
             <div class="winner-name">${data.winner.username}</div>
-            <p>with a score of ${data.winner.score}</p>
+            <p>with a score of ${Math.floor(data.winner.score)}</p>
         `;
     } else {
         winnerAnnouncement.innerHTML = `
@@ -504,14 +463,6 @@ socket.on('game_reset', () => {
     toggleMobileFullscreenMode(false);
 });
 
-socket.on('ai_game_reset', () => {
-    // Hide game over modal
-    gameOverModal.classList.add('hidden');
-    
-    // Restart game loop
-    startAiGameLoop();
-});
-
 // Game controls for both multiplayer and single-player mode
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
@@ -580,20 +531,6 @@ function stopGameLoop() {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
     }
-}
-
-// Start AI game loop
-function startAiGameLoop() {
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-    }
-    
-    function gameLoop() {
-        renderAiGame();
-        animationFrameId = requestAnimationFrame(gameLoop);
-    }
-    
-    animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 // Game rendering function
@@ -902,7 +839,8 @@ function renderAiGame() {
         // Now draw all upper pipes
         gameData.pipes.forEach(pipe => {
             const pipeX = pipe.x * scaleX;
-            const upperY = pipe.upper_y * scaleY;
+            const upperY = (512 - 100 - pipe.lower_y - 100) * scaleY;
+            console.log(pipe.lower_y)
             const pipeWidth = (gameData.pipe_width || 52) * scaleX;
             
             // Upper pipe - now use the same green color as lower pipes

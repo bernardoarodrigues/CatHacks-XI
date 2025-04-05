@@ -93,6 +93,7 @@ class CustomFlappyBirdEnv(FlappyBirdEnv):
         return observation, info
         
     def step(self, action):
+        
         """Override step to ensure new pipes have random heights with fixed gaps."""
         # Check if in countdown mode
         if self.is_in_countdown():

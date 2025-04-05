@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from flappy_bird_gymnasium.envs.flappy_bird_env import FlappyBirdEnv
+from custom_flappy import CustomFlappyBirdEnv
 
 class DQN(nn.Module):
     """DQN model used by the AI player"""
@@ -158,9 +159,6 @@ class SinglePlayerGameManager:
     def _game_loop(self):
         """Main game loop that runs in a separate thread"""
         try:
-            # Track player and AI actions
-            self.player_action = 0
-            
             # Start with countdown
             countdown_start = time.time()
             countdown_duration = 3  # seconds
@@ -220,7 +218,6 @@ class SinglePlayerGameManager:
                 
                 # Get player action
                 player_action = self.player_action
-                self.player_action = 0  # Reset to do nothing by default
                 
                 # Step AI environment
                 observation, ai_reward, ai_terminated, _, ai_info = self.env.step(ai_action)
@@ -252,7 +249,7 @@ class SinglePlayerGameManager:
                         for i, (upper, lower) in enumerate(zip(self.env.unwrapped._upper_pipes, self.env.unwrapped._lower_pipes)):
                             pipes.append({
                                 'x': upper['x'],
-                                'upper_y': upper['y'],  # Upper pipe height
+                                'upper_y': lower['y'] + 130,  # Upper pipe height
                                 'lower_y': lower['y']   # Lower pipe y position
                             })
                         
