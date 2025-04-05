@@ -121,6 +121,29 @@ function resizeGameCanvas() {
 // Call resize on window resize
 window.addEventListener('resize', resizeGameCanvas);
 
+// Show login form when clicking PLAY button
+document.getElementById('show-join-form').addEventListener('click', () => {
+    const loginSection = document.getElementById('login-section');
+    const welcomeContainer = document.querySelector('.welcome-container');
+    
+    loginSection.style.display = 'block';
+    welcomeContainer.style.opacity = '0.5';
+});
+
+// When clicking outside the login form, close it
+document.addEventListener('click', (e) => {
+    const loginSection = document.getElementById('login-section');
+    const welcomeContainer = document.querySelector('.welcome-container');
+    
+    // If clicking outside the login section and it's visible
+    if (!e.target.closest('#login-section') && 
+        !e.target.closest('#show-join-form') && 
+        loginSection.style.display === 'block') {
+        loginSection.style.display = 'none';
+        welcomeContainer.style.opacity = '1';
+    }
+});
+
 // Join game button
 document.getElementById('join-btn').addEventListener('click', () => {
     const username = document.getElementById('username').value.trim();
@@ -130,23 +153,16 @@ document.getElementById('join-btn').addEventListener('click', () => {
     }
     
     currentUser.username = username;
-    currentUser.isAdmin = document.getElementById('admin-checkbox').checked;
     
     socket.emit('join_game', {
         username: currentUser.username,
-        isAdmin: currentUser.isAdmin
+        isAdmin: false
     });
     
-    // Show lobby section, hide login
-    loginSection.style.display = 'none';
-    lobbySection.style.display = 'block';
-    
-    // Show admin controls if user is admin
-    if (currentUser.isAdmin) {
-        adminControls.style.display = 'block';
-        adminGameControls.style.display = 'block';
-        adminResetControls.style.display = 'block';
-    }
+    // Hide welcome container and login section, show lobby
+    document.querySelector('.welcome-container').style.display = 'none';
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('lobby-section').style.display = 'block';
 });
 
 // Admin: Start game button
