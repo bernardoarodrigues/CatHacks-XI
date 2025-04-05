@@ -244,9 +244,13 @@ document.getElementById('join-btn').addEventListener('click', () => {
         alert('Please enter a username');
         return;
     }
+
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const admin = urlParams.get('admin');
     
     currentUser.username = username;
-    currentUser.isAdmin = document.getElementById('admin-checkbox').checked;
+    currentUser.isAdmin = admin === '1';
     
     socket.emit('join_game', {
         username: currentUser.username,
