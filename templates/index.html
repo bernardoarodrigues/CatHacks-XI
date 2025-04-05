@@ -2,17 +2,24 @@
 <html>
 <head>
     <title>FlappyNite - Flappy Bird Battle Royale</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" type="text/css" href="/static/css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="/static/js/index.js" defer></script>
 </head>
 <body>
     <div id="login-section" class="welcome-section">
-        <img src="/static/sprites/welcome.png" alt="FlappyNite Logo" class="welcome-background">
-        <div class="form-container">
-            <input type="text" id="username" placeholder="Enter your username">
-            <label><input type="checkbox" id="admin-checkbox"> Join as Admin</label>
-            <button id="join-btn">Join Game</button>
+        <h1 class="login-title">FlappyNite</h1>
+        <div class="bird-container">
+            <img src="/static/sprites/yellowbird-upflap.png" alt="Flappy Bird" class="login-bird">
+        </div>
+        <div style="padding: 2rem; text-align: center; min-width: 200px;">
+           
+            <input type="text" id="username" placeholder="Username" style="width: 243px; padding-top: 15px; padding-bottom: 15px; margin-bottom: 10px; border-radius: 10px; text-align: center;">
+            <!--<br><label><input type="checkbox" id="admin-checkbox"> Join as Admin</label><br>-->
+            <button id="join-btn" style="width: 250px; padding-top: 15px; padding-bottom: 15px; margin-bottom: 10px;  border-radius: 10px;">Multiplayer</button>
+            <!-- <div class="button-separator">OR</div> -->
+            <button id="play-ai-btn" style="width: 250px; padding-top: 15px; padding-bottom: 15px;  border-radius: 10px;">Play against AI</button>
         </div>
     </div>
 
@@ -65,6 +72,11 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Mobile fullscreen toggle -->
+        <div class="mobile-controls">
+            <button id="toggle-fullscreen" class="fullscreen-button">Go Fullscreen</button>
+        </div>
     </div>
     
     <!-- Game Over Modal -->
@@ -75,5 +87,58 @@
             <button id="modal-reset-btn" class="reset-button">Back to Lobby</button>
         </div>
     </div>
+
+    <style>
+        .welcome-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #4BAE58;
+            padding: 20px;
+        }
+
+        .login-title {
+            font-size: 3.5rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            position: absolute;
+            top: 5px;
+        }
+
+        .bird-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .login-bird {
+            width: 60px;
+            height: 60px;
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(-50px);
+            }
+            50% {
+                transform: translateY(-40px);
+            }
+            100% {
+                transform: translateY(-50px);
+            }
+        }
+
+        .form-container {
+            background-color: black;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            text-align: center;
+            min-width: 200px;
+        }
+    </style>
 </body>
 </html>
